@@ -1,33 +1,257 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# FoodBurguer — Backend API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API SaaS multi-tenant para gerenciamento de restaurantes e pedidos online.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Stack
 
-## Description
+| Camada | Tecnologia |
+|--------|------------|
+| Framework | NestJS 11 |
+| ORM | Prisma 7 |
+| Banco de dados | PostgreSQL |
+| Cache | Redis |
+| Autenticação | JWT + Refresh Token + OAuth Google |
+| Pagamentos | InfinitePay Checkout |
+| Documentação | Swagger / OpenAPI |
+| Validação | class-validator + class-transformer |
+| Segurança | Helmet, Rate Limit, CORS restritivo, RBAC |
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+---
 
-## Project setup
+## Estrutura do projeto
+
+```
+src/
+├── config/
+│   └── app.config.ts              # Configurações tipadas (JWT, Google, Redis, InfinitePay)
+│
+├── common/
+│   ├── decorators/
+│   │   ├── current-user.decorator.ts   # @CurrentUser() — extrai usuário do JWT
+│   │   ├── roles.decorator.ts          # @Roles(...) — metadado para RBAC
+│   │   ├── tenant-id.decorator.ts      # @TenantId() — extrai tenantId do JWT ou header
+│   │   └── public.decorator.ts         # @Public() — ignora JwtAuthGuard
+│   ├── guards/
+│   │   ├── jwt-auth.guard.ts           # Guard JWT padrão (respeita @Public)
+│   │   ├── jwt-refresh.guard.ts        # Guard para refresh token
+│   │   ├── google-auth.guard.ts        # Guard OAuth Google
+│   │   └── roles.guard.ts              # Guard RBAC por UserRole
+│   ├── filters/
+│   │   └── http-exception.filter.ts    # Filtro global de exceções HTTP
+│   └── interceptors/
+│       └── logging.interceptor.ts      # Log de cada requisição HTTP
+│
+├── prisma/
+│   ├── prisma.module.ts           # Módulo global do Prisma
+│   └── prisma.service.ts          # PrismaService (extends PrismaClient)
+│
+└── modules/
+    ├── auth/                      # JWT, Refresh Token, OAuth Google
+    │   ├── strategies/
+    │   │   ├── jwt.strategy.ts
+    │   │   ├── jwt-refresh.strategy.ts
+    │   │   └── google.strategy.ts
+    │   ├── dto/
+    │   │   ├── login.dto.ts
+    │   │   ├── register.dto.ts
+    │   │   └── refresh-token.dto.ts
+    │   ├── auth.controller.ts
+    │   ├── auth.service.ts
+    │   └── auth.module.ts
+    │
+    ├── tenants/                   # CRUD de restaurantes (tenants)
+    │   ├── dto/
+    │   │   ├── create-tenant.dto.ts
+    │   │   └── update-tenant.dto.ts
+    │   ├── tenants.controller.ts
+    │   ├── tenants.service.ts
+    │   └── tenants.module.ts
+    │
+    ├── users/                     # CRUD de usuários (Customer, Employee, Admin)
+    │   ├── dto/
+    │   │   ├── create-user.dto.ts
+    │   │   └── update-user.dto.ts
+    │   ├── users.controller.ts
+    │   ├── users.service.ts
+    │   └── users.module.ts
+    │
+    ├── menu/                      # Catálogo (categorias + produtos)
+    │   ├── categories/
+    │   │   ├── dto/
+    │   │   │   ├── create-category.dto.ts
+    │   │   │   └── update-category.dto.ts
+    │   │   ├── categories.controller.ts
+    │   │   ├── categories.service.ts
+    │   │   └── categories.module.ts
+    │   ├── products/
+    │   │   ├── dto/
+    │   │   │   ├── create-product.dto.ts
+    │   │   │   └── update-product.dto.ts
+    │   │   ├── products.controller.ts
+    │   │   ├── products.service.ts
+    │   │   └── products.module.ts
+    │   └── menu.module.ts
+    │
+    ├── orders/                    # Pedidos LOCAL e DELIVERY + máquina de estados
+    │   ├── dto/
+    │   │   ├── create-order.dto.ts
+    │   │   └── update-order-status.dto.ts
+    │   ├── orders.controller.ts
+    │   ├── orders.service.ts
+    │   └── orders.module.ts
+    │
+    ├── payments/                  # Integração InfinitePay + webhook HMAC
+    │   ├── dto/
+    │   │   └── webhook.dto.ts
+    │   ├── payments.controller.ts
+    │   ├── payments.service.ts
+    │   └── payments.module.ts
+    │
+    ├── delivery/                  # Endereços de entrega do cliente
+    │   ├── dto/
+    │   │   ├── create-address.dto.ts
+    │   │   └── update-address.dto.ts
+    │   ├── delivery.controller.ts
+    │   ├── delivery.service.ts
+    │   └── delivery.module.ts
+    │
+    └── dashboard/                 # Métricas e relatórios [ADMIN]
+        ├── dashboard.controller.ts
+        ├── dashboard.service.ts
+        └── dashboard.module.ts
+```
+
+---
+
+## Rotas da API
+
+| Módulo | Prefixo | Descrição |
+|--------|---------|-----------|
+| Health | `GET /health` | Health check |
+| Auth | `POST /api/v1/auth/register` | Cadastro de cliente |
+| Auth | `POST /api/v1/auth/login` | Login email + senha |
+| Auth | `POST /api/v1/auth/refresh` | Renovar access token |
+| Auth | `POST /api/v1/auth/logout` | Logout |
+| Auth | `GET /api/v1/auth/google` | Iniciar OAuth Google |
+| Tenants | `GET /api/v1/tenants/slug/:slug` | Dados públicos do restaurante |
+| Menu | `GET /api/v1/categories?tenantId=` | Categorias (público) |
+| Menu | `GET /api/v1/products?tenantId=` | Produtos (público) |
+| Orders | `POST /api/v1/orders` | Criar pedido |
+| Orders | `PATCH /api/v1/orders/:id/status` | Atualizar status |
+| Payments | `POST /api/v1/payments/checkout/:orderId` | Iniciar checkout |
+| Addresses | `CRUD /api/v1/addresses` | Endereços do cliente |
+| Dashboard | `GET /api/v1/dashboard/summary` | Métricas [ADMIN] |
+
+Documentação completa (Swagger): `http://localhost:3000/api/docs`
+
+---
+
+## Roles e permissões
+
+| Role | Acesso |
+|------|--------|
+| `CUSTOMER` | Menu, carrinho, pedidos próprios, endereços |
+| `EMPLOYEE` | Visualizar pedidos, atualizar status (PREPARING → READY → DELIVERED) |
+| `ADMIN` | CRUD completo do tenant, funcionários, dashboard, relatórios |
+| `SUPER_ADMIN` | Gerenciar todos os tenants e assinaturas |
+
+---
+
+## Status dos pedidos
+
+```
+PENDING → CONFIRMED → PREPARING → READY → OUT_FOR_DELIVERY → DELIVERED
+                                        ↘ DELIVERED (pedido local)
+PENDING → CANCELLED (pelo cliente)
+```
+
+---
+
+## Como rodar localmente
+
+### Pré-requisitos
+
+- Node.js 22+
+- Docker e Docker Compose
+
+### 1. Clonar e instalar dependências
 
 ```bash
+cd backend
+npm install
+```
+
+### 2. Configurar variáveis de ambiente
+
+```bash
+cp .env.example .env
+```
+
+Editar `.env` com as credenciais do banco e demais serviços:
+
+```env
+DATABASE_URL="postgresql://foodburguer:foodburguer@localhost:5432/foodburguer?schema=public"
+JWT_SECRET=seu_secret_aqui_min_32_chars
+JWT_REFRESH_SECRET=outro_secret_aqui_min_32_chars
+```
+
+### 3. Subir banco e Redis com Docker
+
+```bash
+# Na raiz do projeto (onde está o docker-compose.yml)
+docker-compose up postgres redis -d
+```
+
+### 4. Rodar as migrations
+
+```bash
+npx prisma migrate dev --name init
+```
+
+### 5. Iniciar o servidor
+
+```bash
+npm run start:dev
+```
+
+O servidor estará disponível em:
+- **API:** `http://localhost:3000/api/v1`
+- **Swagger:** `http://localhost:3000/api/docs`
+
+---
+
+## Scripts disponíveis
+
+```bash
+npm run start:dev      # Desenvolvimento com hot-reload
+npm run build          # Compilar para produção
+npm run start:prod     # Iniciar build de produção
+npm run lint           # Verificar código com ESLint
+npm run test           # Testes unitários
+npm run test:e2e       # Testes end-to-end
+npm run test:cov       # Cobertura de testes
+```
+
+## Comandos Prisma
+
+```bash
+npx prisma generate          # Regenerar Prisma Client após alterar schema
+npx prisma migrate dev       # Criar e aplicar migration em desenvolvimento
+npx prisma migrate deploy    # Aplicar migrations em produção
+npx prisma studio            # Interface visual do banco de dados
+```
+
+---
+
+## Deploy com Docker
+
+```bash
+# Na raiz do projeto
+docker-compose up --build
+```
+
+O `docker-compose.yml` sobe PostgreSQL, Redis e o backend com todas as dependências.
+
 $ npm install
 ```
 
@@ -56,43 +280,3 @@ $ npm run test:e2e
 # test coverage
 $ npm run test:cov
 ```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
