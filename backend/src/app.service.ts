@@ -1,8 +1,2 @@
-import { Injectable } from '@nestjs/common';
-
-@Injectable()
-export class AppService {
-  getHello(): string {
-    return 'Hello World!';
-  }
-}
+// app.service.ts está desativado — funcionalidades movidas para módulos específicos
+export {};
